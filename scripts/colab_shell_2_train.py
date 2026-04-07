@@ -49,10 +49,21 @@ RESOLVED_DATA_ROOT_FILE = REPO_DIR / ".colab_resolved_data_root.txt"
 
 def run_command(command: list[str], cwd: Path | None = None) -> None:
     display = " ".join(command)
-    print(f"\n$ {display}")
-    result = subprocess.run(command, cwd=str(cwd) if cwd else None)
+    print(f"\n$ {display}", flush=True)
+    result = subprocess.run(
+        command,
+        cwd=str(cwd) if cwd else None,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    if result.stdout:
+        print(result.stdout, flush=True)
     if result.returncode != 0:
-        raise RuntimeError(f"Command failed with exit code {result.returncode}: {display}")
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}.\n"
+            f"Output:\n{result.stdout or '(no output captured)'}"
+        )
 
 
 def preflight_runtime_check() -> None:
