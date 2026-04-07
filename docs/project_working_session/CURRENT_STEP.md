@@ -4,21 +4,19 @@ Last updated: 2026-04-07 (local)
 Owner: Claude
 
 ## Where We Are
-- Step ID: colab-gpu-utilization-tuning
+- Step ID: fix-resume-weights-only
 - Status: READY
-- Summary: Tuned Colab training config to utilize T4 GPU properly — increased batch size to 128, workers to 2, and scaled LR.
+- Summary: Fixed resume crash caused by `weights_only=True` rejecting non-tensor checkpoint data; improved Colab error visibility.
 
 ## Completed In This Pass
-- Increased `BATCH_SIZE` from 32 to 128 in `scripts/colab_shell_2_train.py` to fill T4 VRAM.
-- Increased `NUM_WORKERS` from 0 to 2 to keep GPU fed with data.
-- Scaled `LEARNING_RATE` from 1e-3 to 3e-3 (linear scaling rule for 4x batch size).
+- Changed `load_checkpoint` call in `train.py` resume path from `weights_only=True` to `weights_only=False` (checkpoint contains strings, lists, dicts).
+- Updated `run_command` in `colab_shell_2_train.py` to show subprocess errors instead of swallowing them.
+- Updated resume tests to match new `weights_only=False` behavior.
 
 ## Next Exact Action
-- Command: Re-run `scripts/colab_shell_2_train.py` in Colab and monitor GPU utilization via `!nvidia-smi`.
-- Expected result: GPU memory usage should rise to ~5-7GB. If OOM, reduce `BATCH_SIZE` to 96.
+- Command: Re-run `scripts/colab_shell_2_train.py` in Colab. The resume from `last.pt` should now succeed.
+- Expected result: Training resumes from saved epoch and runs to completion with ~5-7GB GPU usage on T4.
 
 ## If Blocked
 - Blocker: OOM error with batch size 128.
-- Fix: Reduce `BATCH_SIZE` to 96 or 64 in `scripts/colab_shell_2_train.py`.
-- Blocker: Training diverges (loss spikes or NaN).
-- Fix: Reduce `LEARNING_RATE` to 2e-3 or 1e-3.
+- Fix: Reduce `BATCH_SIZE` to 96 in `scripts/colab_shell_2_train.py`.

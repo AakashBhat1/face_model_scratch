@@ -117,3 +117,20 @@
 - Verification: `py_compile scripts/colab_shell_2_train.py` -> success.
 - Verification: `pytest -q` -> 31 passed in 3.02s.
 - Follow-up: if OOM occurs, reduce to BATCH_SIZE=96. If training is unstable, reduce LR to 2e-3. For even higher utilization try BATCH_SIZE=256.
+
+## Pass 2026-04-07-11
+- Added: .gitignore
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Added root `.gitignore` with `models/` excluded from version control.
+- Verification: `pytest -q` -> 31 passed (no code changes, config-only).
+
+## Pass 2026-04-07-12
+- Updated: src/face_model_core/train.py
+- Updated: scripts/colab_shell_2_train.py
+- Updated: tests/test_train_resume.py
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Fixed Colab resume crash — `weights_only=True` rejects non-tensor data (config dict, class_names, epoch int) in checkpoint. Changed to `weights_only=False` for resume path. Also improved `run_command` to surface subprocess errors in Colab notebooks instead of swallowing them.
+- Verification: `pytest -q` -> 31 passed in 2.81s.
+- Follow-up: re-run shell 2 in Colab; resume should now succeed.

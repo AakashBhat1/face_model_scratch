@@ -88,7 +88,7 @@ def test_train_model_skips_when_resume_already_complete(monkeypatch, tmp_path: P
     returned = train_model(config)
     assert returned == checkpoint_path
     assert save_calls["count"] == 0
-    assert load_calls["weights_only"] is True
+    assert load_calls["weights_only"] is False
 
 
 def test_train_model_resumes_and_runs_next_epoch(monkeypatch, tmp_path: Path) -> None:
@@ -150,7 +150,7 @@ def test_train_model_resumes_and_runs_next_epoch(monkeypatch, tmp_path: Path) ->
     assert returned == config.checkpoint_dir / "best.pt"
     assert (config.checkpoint_dir / "best.pt").exists()
     assert (config.checkpoint_dir / "last.pt").exists()
-    assert load_calls["weights_only"] is True
+    assert load_calls["weights_only"] is False
 
 
 def test_train_model_raises_when_resume_file_missing(tmp_path: Path) -> None:

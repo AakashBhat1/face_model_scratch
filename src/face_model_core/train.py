@@ -32,7 +32,7 @@ def train_model(config: TrainConfig) -> Path:
         if not config.resume_from.exists():
             raise FileNotFoundError(f"Resume checkpoint not found: {config.resume_from}")
 
-        resume_checkpoint = load_checkpoint(config.resume_from, map_location=device, weights_only=True)
+        resume_checkpoint = load_checkpoint(config.resume_from, map_location=device, weights_only=False)
         start_epoch = int(resume_checkpoint.get("epoch", 0)) + 1
         best_metric = float(resume_checkpoint.get("best_metric", -1.0)) 
         if start_epoch > config.epochs:
