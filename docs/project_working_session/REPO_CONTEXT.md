@@ -16,8 +16,10 @@ Face Recognition Model (Core Only) for learning face embeddings from identity-la
 - `scripts/colab_autorun_train.py`: one-cell Colab bootstrap script that mounts Drive, clones/pulls repo, installs deps, optionally downloads dataset from KaggleHub, auto-resolves dataset root (`train/` + `val/`), checks GPU runtime, and starts/resumes training with unbuffered Python output; default `NUM_WORKERS=0` for stability (prefer shell 2 for tuned GPU settings).
 - `scripts/colab_shell_1_setup.py`: Colab shell 1 for setup (mount Drive, sync repo, install deps, resolve dataset root, and prepare checkpoint directory).
 - `scripts/colab_shell_2_train.py`: Colab shell 2 for training/resume (auto-reads resolved dataset root and can auto-resume from `last.pt`); default Colab settings tuned for T4 GPU (`BATCH_SIZE=256`, `NUM_WORKERS=4`, `LR=5e-3`, AMP enabled).
-- `local_model_testing/quick_eval_best.py`: local smoke-test script (untracked) that evaluates a checkpoint (default `models/best.pt`) on validation pairs and prints `same_mean`, `diff_mean`, and `pair_acc`.
-- `local_model_testing/quick_infer_best.py`: local smoke-test script (untracked) that builds a gallery from `val/` and runs one query image match against it.
+- `local_model_testing/scripts/quick_eval_best.py`: local smoke-test script (untracked) that evaluates a checkpoint (default `models/best.pt`) on validation pairs and prints `same_mean`, `diff_mean`, and `pair_acc`.
+- `local_model_testing/scripts/quick_infer_best.py`: local smoke-test script (untracked) that builds a gallery from `val/` and runs one query image match against it.
+- `local_model_testing/input/query_images/my_face.jpg`: default query image location for face scan smoke tests.
+- `local_model_testing/output/galleries/`: auto-generated gallery output folder for local tests.
 - `tests/`: unit tests for config, model, losses, similarity, checkpointing, CLI, inference, and validation including malformed gallery and threshold edge cases.
 
 ## Key Dependencies
@@ -41,3 +43,4 @@ Face Recognition Model (Core Only) for learning face embeddings from identity-la
 - Mixed precision is enabled by default in CLI and activates on CUDA.
 - Inference expects trusted checkpoints; inference load path enforces safer `weights_only` deserialization.
 - Local throwaway testing scripts are placed in `local_model_testing/`, and this folder is gitignored.
+- Default local scan photo location is `local_model_testing/input/query_images/my_face.jpg`.

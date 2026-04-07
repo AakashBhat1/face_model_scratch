@@ -159,3 +159,35 @@
 - Notes: Full GPU utilization overhaul. Enabled `cudnn.benchmark` for fixed-size input speedup. Added `persistent_workers` and `prefetch_factor=4` to dataloaders to eliminate worker restart overhead and keep GPU fed. Moved loss criterion to GPU. Added GPU memory logging (allocated + reserved) at model load and per epoch. Bumped Colab defaults to `BATCH_SIZE=256`, `NUM_WORKERS=4`, `LR=5e-3` to properly fill T4 15GB VRAM.
 - Verification: `pytest -q` -> 31 passed in 2.83s.
 - Follow-up: re-run shell 2 in Colab; expect 4-8GB allocated, 8-12GB reserved. If OOM, reduce to BATCH_SIZE=128.
+
+## Pass 2026-04-07-15
+- Added: local_model_testing/README.md
+- Added: local_model_testing/input/query_images/PUT_YOUR_FACE_HERE.txt
+- Added: local_model_testing/scripts/quick_eval_best.py
+- Added: local_model_testing/scripts/quick_infer_best.py
+- Added: local_model_testing/output/galleries/
+- Deleted: local_model_testing/quick_eval_best.py
+- Deleted: local_model_testing/quick_infer_best.py
+- Updated: docs/project_working_session/REPO_CONTEXT.md
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Reorganized local smoke testing into `scripts/`, `input/query_images/`, and `output/galleries/` folders. Added a default face photo drop location at `local_model_testing/input/query_images/my_face.jpg`, updated inference defaults to use it, added strict threshold validation, and aligned both smoke scripts with explicit trusted-only unsafe-deserialization fallback behavior.
+- Verification: `python -m py_compile local_model_testing/scripts/quick_eval_best.py local_model_testing/scripts/quick_infer_best.py` -> success.
+- Verification: `python local_model_testing/scripts/quick_infer_best.py --help` -> success.
+- Follow-up: place a photo at `local_model_testing/input/query_images/my_face.jpg` and run quick inference.
+
+## Pass 2026-04-07-16
+- Updated: scripts/colab_shell_2_train.py
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Fixed stale Colab cell problem. Shell 2 now includes a `colab_cell_snippet()` that returns a thin 4-line launcher. Users paste the launcher once; it executes the repo file directly so `git pull` updates always take effect. Also improved `run_command` to merge stdout+stderr for visible error output in notebooks.
+- Verification: `pytest -q` -> 31 passed in 2.58s.
+- Follow-up: replace Colab shell 2 cell with the thin launcher, re-run shell 1 then shell 2.
+
+## Pass 2026-04-07-17
+- Updated: src/face_model_core/checkpoint.py
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Fixed corrupt checkpoint crash. `last.pt` on Drive was truncated (Colab disconnect mid-save). Added atomic checkpoint saving (write to `.pt.tmp` then rename) to prevent future corruption. Added clear error message for corrupted zip archives on load.
+- Verification: `pytest -q` -> 31 passed in 2.83s.
+- Follow-up: delete corrupt `last.pt` from Drive, re-run shell 1 + shell 2 to start fresh.

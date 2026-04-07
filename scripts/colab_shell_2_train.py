@@ -189,5 +189,21 @@ def main() -> None:
     print("\nTraining completed successfully.")
 
 
+def colab_cell_snippet() -> str:
+    """Return a small snippet users can paste into a Colab cell.
+
+    This snippet executes the latest repo version of this script,
+    so git-pull updates take effect without re-pasting the cell.
+    """
+    return (
+        "# Colab Shell 2 — paste this once, it always runs the latest repo version\n"
+        "import subprocess, sys\n"
+        "subprocess.run(\n"
+        '    [sys.executable, "/content/face_model_scratch/scripts/colab_shell_2_train.py"],\n'
+        "    check=True,\n"
+        ")\n"
+    )
+
+
 if __name__ == "__main__":
     main()

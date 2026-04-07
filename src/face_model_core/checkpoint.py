@@ -44,7 +44,11 @@ def save_checkpoint(
         payload["scaler_state"] = scaler.state_dict()
     if head is not None:
         payload["head_state"] = head.state_dict()
-    torch.save(payload, path)
+    # Atomic save: write to temp file then rename so a crash mid-save
+    # never leaves a corrupted checkpoint.
+    tmp_path = path.with_suffix(".pt.tmp")
+    torch.save(payload, tmp_path)
+    tmp_path.replace(path)
 
 
 def load_checkpoint(
@@ -58,3 +62,11 @@ def load_checkpoint(
         if weights_only:
             raise RuntimeError("weights_only loading is not supported by this PyTorch version")
         return torch.load(path, map_location=map_location)
+    except RuntimeError as exc:
+        if "zip archive" in str(exc) or "central directory" in str(exc):
+            raise RuntimeError(
+                f"Checkpoint file is corrupted (likely truncated by a disconnection): {path}\n"
+                f"Delete it and restart training from scratch, or use a different checkpoint.\n"
+                f"Original error: {exc}"
+            ) from exc
+        raise
