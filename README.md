@@ -185,6 +185,13 @@ python -m face_model_core.cli train \
   --learning-rate 1e-3 \
   --checkpoint-dir ./checkpoints
 
+# Resume from the last checkpoint
+python -m face_model_core.cli train \
+  --data-root ./data \
+  --resume-from ./checkpoints/last.pt \
+  --epochs 12 \
+  --checkpoint-dir ./checkpoints
+
 python -m face_model_core.cli build-gallery \
   --gallery-root ./data/val \
   --checkpoint ./checkpoints/best.pt \
@@ -196,3 +203,14 @@ python -m face_model_core.cli infer \
   --gallery ./artifacts/gallery.npz \
   --threshold 0.4
 ```
+
+## Colab Auto-Download Option
+
+If your dataset is not already organized in Google Drive, `scripts/colab_autorun_train.py` can optionally download from KaggleHub and auto-detect the folder that contains both `train/` and `val/`.
+
+In `scripts/colab_autorun_train.py` set:
+
+- `AUTO_DOWNLOAD_DATASET = True`
+- `KAGGLE_DATASET = "hearfool/vggface2"`
+
+Then run the script in Colab. If your Kaggle credentials are required, configure Kaggle access in Colab first.

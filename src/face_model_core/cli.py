@@ -33,6 +33,7 @@ def _build_parser() -> argparse.ArgumentParser:
     train_p.add_argument("--learning-rate", type=float, default=1e-3)
     train_p.add_argument("--weight-decay", type=float, default=1e-4)
     train_p.add_argument("--num-workers", type=int, default=2)
+    train_p.add_argument("--resume-from", type=Path, default=None)
     mixed_precision_group = train_p.add_mutually_exclusive_group()
     mixed_precision_group.add_argument("--mixed-precision", dest="mixed_precision", action="store_true")
     mixed_precision_group.add_argument("--no-mixed-precision", dest="mixed_precision", action="store_false")
@@ -62,6 +63,7 @@ def main() -> None:
     if args.command == "train":
         config = TrainConfig(
             data_root=args.data_root,
+            resume_from=args.resume_from,
             backbone=args.backbone,
             embedding_dim=args.embedding_dim,
             loss_type=args.loss_type,

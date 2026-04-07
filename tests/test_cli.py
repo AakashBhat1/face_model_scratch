@@ -19,6 +19,14 @@ def test_cli_train_allows_disabling_mixed_precision() -> None:
     assert args.mixed_precision is False
 
 
+def test_cli_train_parses_resume_from() -> None:
+    parser = _build_parser()
+    args = parser.parse_args(
+        ["train", "--data-root", str(Path("data")), "--resume-from", "checkpoints/last.pt"]
+    )
+    assert args.resume_from == Path("checkpoints/last.pt")
+
+
 def test_cli_parsing_infer_command() -> None:
     parser = _build_parser()
     args = parser.parse_args(

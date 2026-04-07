@@ -8,7 +8,7 @@ from torch import nn
 from torch.amp import GradScaler, autocast
 from torch.optim import AdamW
 
-from face_model_core.checkpoint import save_checkpoint
+from face_model_core.checkpoint import load_checkpoint, save_checkpoint
 from face_model_core.config import TrainConfig
 from face_model_core.data import create_dataloaders
 from face_model_core.losses import ArcFaceLoss, BatchTripletLoss
@@ -20,6 +20,26 @@ from face_model_core.validation import collect_embeddings, quick_similarity_eval
 def train_model(config: TrainConfig) -> Path:
     set_seed(config.seed)
     device = get_device()
+
+    resume_checkpoint: dict | None = None
+    start_epoch = 1
+    best_metric = -1.0
+    best_path = config.checkpoint_dir / "best.pt"
+    last_path = config.checkpoint_dir / "last.pt"
+
+    if config.resume_from is not None:
+        if not config.resume_from.exists():
+            raise FileNotFoundError(f"Resume checkpoint not found: {config.resume_from}")
+
+        resume_checkpoint = load_checkpoint(config.resume_from, map_location=device, weights_only=True)
+        start_epoch = int(resume_checkpoint.get("epoch", 0)) + 1
+        best_metric = float(resume_checkpoint.get("best_metric", -1.0))
+        if start_epoch > config.epochs:
+            print("Resume checkpoint already reached requested epochs; skipping training.")
+            if best_path.exists():
+                return best_path
+            return config.resume_from
+
     train_loader, val_loader, num_classes, class_names = create_dataloaders(
         data_root=config.data_root,
         image_size=config.image_size,
@@ -42,14 +62,25 @@ def train_model(config: TrainConfig) -> Path:
     use_amp = bool(config.mixed_precision and device.type == "cuda")
     scaler = GradScaler("cuda", enabled=use_amp)
 
-    best_metric = -1.0
-    best_path = config.checkpoint_dir / "best.pt"
-    last_path = config.checkpoint_dir / "last.pt"
+    if resume_checkpoint is not None:
+        model.load_state_dict(resume_checkpoint["model_state"])
+        optimizer.load_state_dict(resume_checkpoint["optimizer_state"])
 
-    for epoch in range(1, config.epochs + 1):
+        if head is not None:
+            if "head_state" not in resume_checkpoint:
+                raise ValueError("Missing head_state in resume checkpoint for arcface training")
+            head.load_state_dict(resume_checkpoint["head_state"])
+
+        if "scaler_state" in resume_checkpoint:
+            scaler.load_state_dict(resume_checkpoint["scaler_state"])
+
+        print(f"Resumed from {config.resume_from} at epoch {start_epoch}")
+
+    for epoch in range(start_epoch, config.epochs + 1):
         model.train()
         epoch_loss = 0.0
-        for images, labels in train_loader:
+        total_steps = len(train_loader)
+        for step, (images, labels) in enumerate(train_loader, start=1):
             images = images.to(device, non_blocking=True)
             labels = labels.to(device, non_blocking=True)
             optimizer.zero_grad(set_to_none=True)
@@ -66,7 +97,15 @@ def train_model(config: TrainConfig) -> Path:
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
-            epoch_loss += float(loss.detach().item())
+            step_loss = float(loss.detach().item())
+            epoch_loss += step_loss
+
+            # Heartbeat logs help detect stalled runs on long epochs in Colab.
+            if step == 1 or step == total_steps or step % 100 == 0:
+                print(
+                    f"epoch={epoch} step={step}/{total_steps} batch_loss={step_loss:.4f}",
+                    flush=True,
+                )
 
         val_embeddings, val_labels = collect_embeddings(
             model=model,
@@ -85,7 +124,8 @@ def train_model(config: TrainConfig) -> Path:
         print(
             f"epoch={epoch} train_loss={train_loss:.4f} "
             f"same_mean={metrics['same_mean']:.4f} diff_mean={metrics['diff_mean']:.4f} "
-            f"pair_acc={metrics['pair_acc']:.4f}"
+            f"pair_acc={metrics['pair_acc']:.4f}",
+            flush=True,
         )
 
         if metrics["pair_acc"] > best_metric:

@@ -29,6 +29,7 @@ class TrainConfig:
     arcface_scale: float = 64.0
     triplet_margin: float = 0.2
     seed: int = 42
+    resume_from: Path | None = None
 
     def __post_init__(self) -> None:
         if self.backbone not in VALID_BACKBONES:
@@ -51,3 +52,5 @@ class TrainConfig:
             raise ValueError("arcface_margin must be positive")
         if self.arcface_scale <= 0:
             raise ValueError("arcface_scale must be positive")
+        if self.resume_from is not None and not isinstance(self.resume_from, Path):
+            raise ValueError("resume_from must be a pathlib.Path when provided")
