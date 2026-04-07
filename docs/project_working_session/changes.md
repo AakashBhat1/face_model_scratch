@@ -191,3 +191,11 @@
 - Notes: Fixed corrupt checkpoint crash. `last.pt` on Drive was truncated (Colab disconnect mid-save). Added atomic checkpoint saving (write to `.pt.tmp` then rename) to prevent future corruption. Added clear error message for corrupted zip archives on load.
 - Verification: `pytest -q` -> 31 passed in 2.83s.
 - Follow-up: delete corrupt `last.pt` from Drive, re-run shell 1 + shell 2 to start fresh.
+
+## Pass 2026-04-07-18
+- Updated: scripts/colab_shell_2_train.py
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Fixed missing real-time logs in Colab. Previous `run_command` used `subprocess.run(stdout=PIPE)` which buffered all output until completion. Replaced with `subprocess.Popen` streaming line-by-line so heartbeats, epoch results, and GPU memory logs appear immediately. Also bumped `BATCH_SIZE` from 256 to 512.
+- Verification: `pytest -q` -> 31 passed in 2.64s.
+- Follow-up: push, re-run shell 1 + shell 2, confirm logs stream and GPU memory fills.

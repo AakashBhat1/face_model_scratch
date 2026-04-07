@@ -21,7 +21,7 @@ CHECKPOINT_DIR = Path("/content/drive/MyDrive/face_checkpoints")
 
 # Set explicitly if needed, otherwise shell 2 uses auto-resume from last.pt.
 RESUME_FROM: Path | None = None
-AUTO_RESUME_IF_LAST_EXISTS = True
+AUTO_RESUME_IF_LAST_EXISTS = False  # set True once you have a known-good checkpoint
 
 # Cross-account helpers:
 # 1) upload last.pt into /content in Colab and leave this path as-is,
@@ -35,8 +35,8 @@ EMBEDDING_DIM = 512     # choices: 128, 512
 LOSS_TYPE = "arcface"  # choices: arcface, triplet
 
 EPOCHS = 12
-BATCH_SIZE = 256        # T4 has 15GB; 256 at 112x112 with AMP uses ~8-10GB
-LEARNING_RATE = 5e-3    # linear scaling: 256/32 = 8x, so 8 * 1e-3 ≈ 5e-3 (capped)
+BATCH_SIZE = 512        # T4 has 15GB; AMP keeps memory low — push to fill VRAM
+LEARNING_RATE = 5e-3    # capped at 5e-3 for stability even with large batch
 IMAGE_SIZE = 112
 NUM_WORKERS = 4         # Colab has 2 CPU cores; 4 workers keeps GPU pipeline full
 VAL_MAX_IMAGES = 1200
@@ -50,19 +50,26 @@ RESOLVED_DATA_ROOT_FILE = REPO_DIR / ".colab_resolved_data_root.txt"
 def run_command(command: list[str], cwd: Path | None = None) -> None:
     display = " ".join(command)
     print(f"\n$ {display}", flush=True)
-    result = subprocess.run(
+    # Stream output line-by-line so logs appear in real-time in Colab,
+    # while also capturing for error reporting.
+    process = subprocess.Popen(
         command,
         cwd=str(cwd) if cwd else None,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        bufsize=1,
     )
-    if result.stdout:
-        print(result.stdout, flush=True)
-    if result.returncode != 0:
+    output_lines: list[str] = []
+    for line in process.stdout:
+        print(line, end="", flush=True)
+        output_lines.append(line)
+    process.wait()
+    if process.returncode != 0:
+        captured = "".join(output_lines) or "(no output captured)"
         raise RuntimeError(
-            f"Command failed with exit code {result.returncode}.\n"
-            f"Output:\n{result.stdout or '(no output captured)'}"
+            f"Command failed with exit code {process.returncode}.\n"
+            f"Output:\n{captured}"
         )
 
 

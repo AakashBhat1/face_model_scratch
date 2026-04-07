@@ -4,18 +4,19 @@ Last updated: 2026-04-07 (local)
 Owner: Claude
 
 ## Where We Are
-- Step ID: fix-corrupt-checkpoint
+- Step ID: fix-realtime-logs
 - Status: READY
-- Summary: Fixed corrupt `last.pt` crash. Added atomic checkpoint saving (write-to-tmp-then-rename) to prevent future corruption from Colab disconnects. Added clear error message for corrupted checkpoints.
+- Summary: Fixed missing Colab logs — switched `run_command` from buffered `subprocess.run` to streaming `Popen` so training output appears line-by-line in real-time. Bumped batch to 512.
 
 ## Completed In This Pass
-- Added atomic save in `checkpoint.py` — writes to `.pt.tmp` then renames, so a crash mid-save never corrupts the checkpoint.
-- Added clear error message when loading a corrupted checkpoint file.
+- Replaced `subprocess.run(stdout=PIPE)` with `subprocess.Popen` + line-by-line streaming in `run_command`.
+- Logs now appear in real-time in Colab while still being captured for error reporting.
+- Bumped `BATCH_SIZE` to 512 to fill T4 VRAM (3.4GB was too low at 256).
 
 ## Next Exact Action
-- Command: In Colab, run `!rm /content/drive/MyDrive/face_checkpoints/last.pt` to delete the corrupt file, then re-run shell 2 to start fresh training.
-- Expected result: Training starts from epoch 1 with GPU memory logs visible.
+- Command: Push, re-run shell 1 + shell 2 in Colab. Logs should stream in real-time.
+- Expected result: See `Dataloaders ready`, `GPU memory after model load`, and per-step heartbeats as they happen.
 
 ## If Blocked
-- Blocker: `best.pt` is also corrupt.
-- Fix: `!rm /content/drive/MyDrive/face_checkpoints/best.pt` and start fully fresh.
+- Blocker: CUDA OOM with batch size 512.
+- Fix: Reduce `BATCH_SIZE` to 256 in `scripts/colab_shell_2_train.py`.
