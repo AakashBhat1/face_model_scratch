@@ -35,10 +35,10 @@ EMBEDDING_DIM = 512     # choices: 128, 512
 LOSS_TYPE = "arcface"  # choices: arcface, triplet
 
 EPOCHS = 12
-BATCH_SIZE = 32
-LEARNING_RATE = 1e-3
+BATCH_SIZE = 128        # T4 can handle 128-256 at 112x112; increase to use more VRAM
+LEARNING_RATE = 3e-3    # scale LR with batch size (linear scaling rule)
 IMAGE_SIZE = 112
-NUM_WORKERS = 0
+NUM_WORKERS = 2         # feed GPU faster; 0 starves it waiting on CPU
 VAL_MAX_IMAGES = 1200
 VAL_THRESHOLD = 0.4
 MIXED_PRECISION = True

@@ -108,3 +108,12 @@
 - Verification: `".venv/Scripts/python.exe" -m py_compile "scripts/colab_shell_1_setup.py" "scripts/colab_shell_2_train.py" "scripts/colab_autorun_train.py"` -> success.
 - Verification: `".venv/Scripts/python.exe" -m pytest -q` -> 31 passed.
 - Follow-up: use shell 1 then shell 2 in Colab; optionally set `RESUME_FROM` or rely on auto-resume from `last.pt`.
+
+## Pass 2026-04-07-10
+- Updated: scripts/colab_shell_2_train.py
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Increased BATCH_SIZE from 32 to 128, NUM_WORKERS from 0 to 2, and scaled LR from 1e-3 to 3e-3 to utilize T4 GPU (was using ~1GB of 15GB due to tiny batches and no data workers).
+- Verification: `py_compile scripts/colab_shell_2_train.py` -> success.
+- Verification: `pytest -q` -> 31 passed in 3.02s.
+- Follow-up: if OOM occurs, reduce to BATCH_SIZE=96. If training is unstable, reduce LR to 2e-3. For even higher utilization try BATCH_SIZE=256.
