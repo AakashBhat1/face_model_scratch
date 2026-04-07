@@ -86,3 +86,13 @@
 - Notes: Added explicit startup logs before dataloader creation and at epoch start so users can distinguish dataset scanning from actual stalls when Colab output is quiet.
 - Verification: `".venv/Scripts/python.exe" -m pytest -q` -> 31 passed.
 - Follow-up: if startup still appears silent in Colab, retry with `NUM_WORKERS=0` to rule out dataloader worker stalls.
+
+## Pass 2026-04-07-08
+- Updated: scripts/colab_autorun_train.py
+- Updated: docs/project_working_session/REPO_CONTEXT.md
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Set Colab autorun default `NUM_WORKERS` to 0 so fresh runs avoid common multiprocessing worker stalls in Colab and show logs reliably.
+- Verification: `".venv/Scripts/python.exe" -m py_compile "scripts/colab_autorun_train.py"` -> success.
+- Verification: `".venv/Scripts/python.exe" -m pytest -q` -> 31 passed.
+- Follow-up: after stable runs are confirmed, optionally test `NUM_WORKERS=1` for speed.

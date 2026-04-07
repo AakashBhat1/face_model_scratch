@@ -6,7 +6,7 @@ Owner: GitHub Copilot
 ## Where We Are
 - Step ID: colab-kagglehub-autorun
 - Status: READY
-- Summary: Added additional startup visibility logs so Colab now prints dataloader scan/build progress before the first batch heartbeat.
+- Summary: Updated Colab autorun defaults for reliability by setting `NUM_WORKERS=0`, while keeping startup and heartbeat logging.
 
 ## Completed In This Pass
 - Added missing inference and validation tests.
@@ -28,11 +28,12 @@ Owner: GitHub Copilot
 - Added per-epoch batch heartbeat logs (`step/total`) during training.
 - Added unbuffered Python launch in Colab script to surface logs immediately.
 - Added explicit startup logs for dataset scan/dataloader creation and epoch start.
+- Set `NUM_WORKERS=0` as the default in Colab autorun script to avoid worker stalls.
 
 ## Next Exact Action
-- Command: `Run scripts/colab_autorun_train.py in Colab and confirm periodic logs like epoch=<n> step=<k>/<total> appear`
+- Command: `Run scripts/colab_autorun_train.py in Colab with default NUM_WORKERS=0 and confirm periodic logs like epoch=<n> step=<k>/<total> appear`
 - File to edit next: `scripts/colab_autorun_train.py`
-- Expected result: Colab output shows startup scan logs, then epoch-start and periodic batch heartbeat logs during training.
+- Expected result: Colab output shows startup scan logs, then epoch-start and periodic batch heartbeat logs during training without dataloader worker hangs.
 
 ## If Blocked
 - Blocker: Dataset path missing or incorrect directory structure.
