@@ -30,6 +30,7 @@ class TrainConfig:
     triplet_margin: float = 0.2
     seed: int = 42
     resume_from: Path | None = None
+    backup_dir: Path | None = None
 
     def __post_init__(self) -> None:
         if self.backbone not in VALID_BACKBONES:

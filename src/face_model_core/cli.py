@@ -41,6 +41,8 @@ def _build_parser() -> argparse.ArgumentParser:
     train_p.add_argument("--checkpoint-dir", type=Path, default=Path("checkpoints"))
     train_p.add_argument("--val-max-images", type=int, default=1200)
     train_p.add_argument("--val-threshold", type=_cosine_threshold, default=0.4)
+    train_p.add_argument("--backup-dir", type=Path, default=None,
+                         help="Sync checkpoints to this dir after each epoch (e.g. Google Drive path)")
 
     gallery_p = sub.add_parser("build-gallery", help="Build identity gallery embeddings")
     gallery_p.add_argument("--gallery-root", type=Path, required=True)
@@ -77,6 +79,7 @@ def main() -> None:
             checkpoint_dir=args.checkpoint_dir,
             val_max_images=args.val_max_images,
             val_threshold=args.val_threshold,
+            backup_dir=args.backup_dir,
         )
         best = train_model(config)
         print(f"best_checkpoint={best}")

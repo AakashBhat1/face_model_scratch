@@ -15,7 +15,7 @@ Face Recognition Model (Core Only) for learning face embeddings from identity-la
 - `src/face_model_core/checkpoint.py`: checkpoint save/load utilities with weights-only safe loading support.
 - `scripts/colab_autorun_train.py`: one-cell Colab bootstrap script that mounts Drive, clones/pulls repo, installs deps, optionally downloads dataset from KaggleHub, auto-resolves dataset root (`train/` + `val/`), checks GPU runtime, and starts/resumes training with unbuffered Python output; default `NUM_WORKERS=0` for stability (prefer shell 2 for tuned GPU settings).
 - `scripts/colab_shell_1_setup.py`: Colab shell 1 for setup (mount Drive, sync repo, install deps, resolve dataset root, and prepare checkpoint directory).
-- `scripts/colab_shell_2_train.py`: Colab shell 2 for training/resume (auto-reads resolved dataset root and can auto-resume from `last.pt`); default Colab settings tuned for T4 GPU (`BATCH_SIZE=256`, `NUM_WORKERS=4`, `LR=5e-3`, AMP enabled).
+- `scripts/colab_shell_2_train.py`: Colab shell 2 for training/resume; trains on local SSD (`/content/checkpoints/`) and syncs to Drive after each epoch via `--backup-dir`; pulls existing Drive checkpoints on startup for resume; default T4 settings: `BATCH_SIZE=512`, `NUM_WORKERS=2`, `LR=5e-3`, AMP enabled.
 - `local_model_testing/scripts/quick_eval_best.py`: local smoke-test script (untracked) that evaluates a checkpoint (default `models/best.pt`) on validation pairs and prints `same_mean`, `diff_mean`, and `pair_acc`.
 - `local_model_testing/scripts/quick_infer_best.py`: local smoke-test script (untracked) that builds a gallery from `val/` and runs one query image match against it.
 - `local_model_testing/input/query_images/my_face.jpg`: default query image location for face scan smoke tests.

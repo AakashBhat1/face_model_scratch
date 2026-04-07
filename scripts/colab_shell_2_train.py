@@ -1,13 +1,17 @@
 """Colab shell 2: train/resume only.
 
 Run this after `scripts/colab_shell_1_setup.py`.
-It reads resolved data root, checks runtime, and starts training.
+
+Strategy: train with checkpoints on LOCAL disk (/content/checkpoints/) for
+fast I/O, then sync to Google Drive after each epoch for persistence.
+On startup, any existing Drive checkpoints are copied to local first.
 """
 
 from __future__ import annotations
 
 import subprocess
 import sys
+import time
 import urllib.request
 from pathlib import Path
 import shutil
@@ -17,18 +21,19 @@ import shutil
 # CONFIGURATION
 # =========================
 REPO_DIR = Path("/content/face_model_scratch")
-CHECKPOINT_DIR = Path("/content/drive/MyDrive/face_checkpoints")
 
-# Set explicitly if needed, otherwise shell 2 uses auto-resume from last.pt.
-RESUME_FROM: Path | None = None
-AUTO_RESUME_IF_LAST_EXISTS = False  # set True once you have a known-good checkpoint
+# Local (fast) checkpoint dir — on the Colab server SSD.
+LOCAL_CHECKPOINT_DIR = Path("/content/checkpoints")
+
+# Drive (persistent) checkpoint dir — survives runtime disconnects.
+DRIVE_CHECKPOINT_DIR = Path("/content/drive/MyDrive/face_checkpoints")
+
+# Resume behaviour
+AUTO_RESUME_IF_LAST_EXISTS = True
 
 # Cross-account helpers:
-# 1) upload last.pt into /content in Colab and leave this path as-is,
-# 2) or set RESUME_FROM_URL to download a checkpoint.
 IMPORT_RESUME_FROM_CONTENT = Path("/content/last.pt")
 RESUME_FROM_URL: str | None = None
-DOWNLOADED_RESUME_PATH = Path("/content/downloaded_last.pt")
 
 BACKBONE = "resnet50"  # choices: resnet50, mobilenet_v2
 EMBEDDING_DIM = 512     # choices: 128, 512
@@ -38,7 +43,7 @@ EPOCHS = 12
 BATCH_SIZE = 512        # T4 has 15GB; AMP keeps memory low — push to fill VRAM
 LEARNING_RATE = 5e-3    # capped at 5e-3 for stability even with large batch
 IMAGE_SIZE = 112
-NUM_WORKERS = 4         # Colab has 2 CPU cores; 4 workers keeps GPU pipeline full
+NUM_WORKERS = 2         # 2 is stable on Colab; 4 can deadlock
 VAL_MAX_IMAGES = 1200
 VAL_THRESHOLD = 0.4
 MIXED_PRECISION = True  # AMP halves memory, doubles throughput on T4
@@ -47,11 +52,13 @@ ALLOW_CPU_TRAINING = False
 RESOLVED_DATA_ROOT_FILE = REPO_DIR / ".colab_resolved_data_root.txt"
 
 
+# =========================
+# HELPERS
+# =========================
+
 def run_command(command: list[str], cwd: Path | None = None) -> None:
     display = " ".join(command)
     print(f"\n$ {display}", flush=True)
-    # Stream output line-by-line so logs appear in real-time in Colab,
-    # while also capturing for error reporting.
     process = subprocess.Popen(
         command,
         cwd=str(cwd) if cwd else None,
@@ -103,37 +110,83 @@ def resolve_data_root() -> Path:
     )
 
 
-def resolve_resume_checkpoint() -> Path | None:
-    if RESUME_FROM is not None:
-        if not RESUME_FROM.exists():
-            raise FileNotFoundError(f"Configured RESUME_FROM not found: {RESUME_FROM}")
-        return RESUME_FROM
+# =========================
+# CHECKPOINT SYNC
+# =========================
 
-    if AUTO_RESUME_IF_LAST_EXISTS:
-        last_path = CHECKPOINT_DIR / "last.pt"
-        if last_path.exists():
-            print(f"Auto-resume enabled. Using checkpoint: {last_path}")
-            return last_path
+def _copy_if_exists(src: Path, dst: Path) -> bool:
+    """Copy src to dst if src exists. Returns True if copied."""
+    if src.is_file():
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+        return True
+    return False
 
-    if IMPORT_RESUME_FROM_CONTENT.exists():
-        target_path = CHECKPOINT_DIR / "last.pt"
-        shutil.copy2(IMPORT_RESUME_FROM_CONTENT, target_path)
-        print(f"Imported uploaded checkpoint from {IMPORT_RESUME_FROM_CONTENT} to {target_path}")
-        return target_path
 
+def pull_checkpoints_from_drive() -> None:
+    """Copy Drive checkpoints to local disk for fast training I/O."""
+    LOCAL_CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+    pulled = False
+
+    for name in ("last.pt", "best.pt"):
+        src = DRIVE_CHECKPOINT_DIR / name
+        dst = LOCAL_CHECKPOINT_DIR / name
+        if _copy_if_exists(src, dst):
+            size_mb = dst.stat().st_size / 1024 / 1024
+            print(f"Pulled {name} from Drive to local ({size_mb:.1f} MB)", flush=True)
+            pulled = True
+
+    # Also handle uploaded checkpoint in /content
+    if IMPORT_RESUME_FROM_CONTENT.is_file():
+        dst = LOCAL_CHECKPOINT_DIR / "last.pt"
+        shutil.copy2(IMPORT_RESUME_FROM_CONTENT, dst)
+        print(f"Imported uploaded checkpoint from {IMPORT_RESUME_FROM_CONTENT}", flush=True)
+        pulled = True
+
+    # Handle URL download
     if RESUME_FROM_URL is not None:
-        print(f"Downloading resume checkpoint from URL: {RESUME_FROM_URL}")
-        urllib.request.urlretrieve(RESUME_FROM_URL, DOWNLOADED_RESUME_PATH)
-        target_path = CHECKPOINT_DIR / "last.pt"
-        shutil.copy2(DOWNLOADED_RESUME_PATH, target_path)
-        print(f"Downloaded checkpoint copied to {target_path}")
-        return target_path
+        print(f"Downloading resume checkpoint from URL: {RESUME_FROM_URL}", flush=True)
+        tmp = Path("/content/downloaded_last.pt")
+        urllib.request.urlretrieve(RESUME_FROM_URL, tmp)
+        dst = LOCAL_CHECKPOINT_DIR / "last.pt"
+        shutil.copy2(tmp, dst)
+        print(f"Downloaded checkpoint saved to local", flush=True)
+        pulled = True
+
+    if not pulled:
+        print("No existing checkpoints found. Starting fresh.", flush=True)
+
+
+def push_checkpoints_to_drive() -> None:
+    """Copy local checkpoints to Drive for persistence."""
+    DRIVE_CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+    for name in ("last.pt", "best.pt"):
+        src = LOCAL_CHECKPOINT_DIR / name
+        if src.is_file():
+            dst = DRIVE_CHECKPOINT_DIR / name
+            start = time.time()
+            shutil.copy2(src, dst)
+            elapsed = time.time() - start
+            print(f"Synced {name} to Drive ({elapsed:.1f}s)", flush=True)
+
+
+# =========================
+# TRAINING
+# =========================
+
+def resolve_resume_checkpoint() -> Path | None:
+    """Find a local checkpoint to resume from."""
+    if AUTO_RESUME_IF_LAST_EXISTS:
+        last_path = LOCAL_CHECKPOINT_DIR / "last.pt"
+        if last_path.is_file():
+            print(f"Auto-resume: found local {last_path}", flush=True)
+            return last_path
 
     return None
 
 
 def start_training(data_root: Path) -> None:
-    CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+    LOCAL_CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
 
     resume_path = resolve_resume_checkpoint()
 
@@ -166,7 +219,9 @@ def start_training(data_root: Path) -> None:
         "--val-threshold",
         str(VAL_THRESHOLD),
         "--checkpoint-dir",
-        str(CHECKPOINT_DIR),
+        str(LOCAL_CHECKPOINT_DIR),
+        "--backup-dir",
+        str(DRIVE_CHECKPOINT_DIR),
     ]
 
     if not MIXED_PRECISION:
@@ -179,7 +234,7 @@ def start_training(data_root: Path) -> None:
 
 
 def main() -> None:
-    print("Mounting Google Drive...")
+    print("Mounting Google Drive...", flush=True)
     from google.colab import drive  # pylint: disable=import-outside-toplevel
 
     drive.mount("/content/drive")
@@ -191,17 +246,24 @@ def main() -> None:
 
     preflight_runtime_check()
     data_root = resolve_data_root()
-    print("Starting training...")
+
+    # Pull checkpoints from Drive to fast local disk
+    print("\n=== Syncing checkpoints from Drive ===", flush=True)
+    pull_checkpoints_from_drive()
+
+    # Train (reads/writes to LOCAL_CHECKPOINT_DIR)
+    print("\n=== Starting training ===", flush=True)
     start_training(data_root)
-    print("\nTraining completed successfully.")
+
+    # Push final checkpoints back to Drive
+    print("\n=== Syncing checkpoints to Drive ===", flush=True)
+    push_checkpoints_to_drive()
+
+    print("\nTraining completed successfully.", flush=True)
 
 
 def colab_cell_snippet() -> str:
-    """Return a small snippet users can paste into a Colab cell.
-
-    This snippet executes the latest repo version of this script,
-    so git-pull updates take effect without re-pasting the cell.
-    """
+    """Return a small snippet users can paste into a Colab cell."""
     return (
         "# Colab Shell 2 — paste this once, it always runs the latest repo version\n"
         "import subprocess, sys\n"

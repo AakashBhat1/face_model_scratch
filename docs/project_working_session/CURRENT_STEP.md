@@ -4,18 +4,21 @@ Last updated: 2026-04-07 (local)
 Owner: Claude
 
 ## Where We Are
-- Step ID: fix-realtime-logs
+- Step ID: local-checkpoint-with-drive-sync
 - Status: READY
-- Summary: Fixed missing Colab logs — switched `run_command` from buffered `subprocess.run` to streaming `Popen` so training output appears line-by-line in real-time. Bumped batch to 512.
+- Summary: Overhauled checkpoint strategy — train on local SSD, sync to Drive after each epoch. Eliminates Drive I/O bottleneck that caused hangs.
 
 ## Completed In This Pass
-- Replaced `subprocess.run(stdout=PIPE)` with `subprocess.Popen` + line-by-line streaming in `run_command`.
-- Logs now appear in real-time in Colab while still being captured for error reporting.
-- Bumped `BATCH_SIZE` to 512 to fill T4 VRAM (3.4GB was too low at 256).
+- Rewrote `scripts/colab_shell_2_train.py` with local/Drive split: `LOCAL_CHECKPOINT_DIR=/content/checkpoints/` for fast training I/O, `DRIVE_CHECKPOINT_DIR` for persistence.
+- On startup: pulls existing checkpoints from Drive to local.
+- Added `backup_dir` field to `TrainConfig` and `--backup-dir` CLI flag.
+- Training loop syncs `best.pt`/`last.pt` to `backup_dir` (Drive) after every epoch with timing log.
+- After training completes: final sync to Drive.
+- Reduced `NUM_WORKERS` to 2 (4 deadlocks on Colab).
 
 ## Next Exact Action
-- Command: Push, re-run shell 1 + shell 2 in Colab. Logs should stream in real-time.
-- Expected result: See `Dataloaders ready`, `GPU memory after model load`, and per-step heartbeats as they happen.
+- Command: Push, re-run shell 1 then shell 2 in Colab. Training reads/writes locally; Drive gets synced per epoch.
+- Expected result: No more Drive I/O hangs. Logs stream in real-time. Per-epoch `Synced checkpoints to Drive (Xs)` confirms backup.
 
 ## If Blocked
 - Blocker: CUDA OOM with batch size 512.

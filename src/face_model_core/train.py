@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import shutil
+import time
 from dataclasses import asdict
 from pathlib import Path
 
@@ -174,5 +176,15 @@ def train_model(config: TrainConfig) -> Path:
             head=head,
             class_names=class_names,
         )
+
+        # Sync checkpoints to backup dir (e.g. Google Drive) after each epoch.
+        if config.backup_dir is not None:
+            config.backup_dir.mkdir(parents=True, exist_ok=True)
+            start_sync = time.time()
+            for ckpt in (best_path, last_path):
+                if ckpt.exists():
+                    shutil.copy2(ckpt, config.backup_dir / ckpt.name)
+            elapsed = time.time() - start_sync
+            print(f"Synced checkpoints to {config.backup_dir} ({elapsed:.1f}s)", flush=True)
 
     return best_path if best_path.exists() else last_path

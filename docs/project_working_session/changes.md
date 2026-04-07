@@ -199,3 +199,15 @@
 - Notes: Fixed missing real-time logs in Colab. Previous `run_command` used `subprocess.run(stdout=PIPE)` which buffered all output until completion. Replaced with `subprocess.Popen` streaming line-by-line so heartbeats, epoch results, and GPU memory logs appear immediately. Also bumped `BATCH_SIZE` from 256 to 512.
 - Verification: `pytest -q` -> 31 passed in 2.64s.
 - Follow-up: push, re-run shell 1 + shell 2, confirm logs stream and GPU memory fills.
+
+## Pass 2026-04-07-19
+- Updated: scripts/colab_shell_2_train.py (full rewrite)
+- Updated: src/face_model_core/config.py
+- Updated: src/face_model_core/train.py
+- Updated: src/face_model_core/cli.py
+- Updated: docs/project_working_session/REPO_CONTEXT.md
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Overhauled checkpoint strategy to fix Drive I/O hangs. Training now uses local SSD (`/content/checkpoints/`) for all checkpoint reads/writes — fast and reliable. Drive is used only for backup: pulled on startup, synced after each epoch via new `--backup-dir` CLI flag and `backup_dir` config field. Reduced `NUM_WORKERS` from 4 to 2 to avoid Colab deadlocks.
+- Verification: `pytest -q` -> 31 passed in 2.95s.
+- Follow-up: push, re-run shell 1 + shell 2. Expect real-time logs and per-epoch Drive sync messages.
