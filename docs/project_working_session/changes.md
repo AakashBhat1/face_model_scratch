@@ -134,3 +134,28 @@
 - Notes: Fixed Colab resume crash — `weights_only=True` rejects non-tensor data (config dict, class_names, epoch int) in checkpoint. Changed to `weights_only=False` for resume path. Also improved `run_command` to surface subprocess errors in Colab notebooks instead of swallowing them.
 - Verification: `pytest -q` -> 31 passed in 2.81s.
 - Follow-up: re-run shell 2 in Colab; resume should now succeed.
+
+## Pass 2026-04-07-13
+- Updated: .gitignore
+- Added: local_model_testing/quick_eval_best.py
+- Added: local_model_testing/quick_infer_best.py
+- Updated: docs/project_working_session/REPO_CONTEXT.md
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Added a separate local testing folder so checkpoint testing can run without any training-code edits. `quick_eval_best.py` reports validation pair metrics, validates CLI input ranges, and uses safe `weights_only` loading by default with explicit `--allow-unsafe-deserialization` opt-in for trusted legacy checkpoints only. `quick_infer_best.py` builds a gallery and runs a query match, requires explicit `--image`, and blocks query-in-gallery by default unless `--allow-query-in-gallery` is set. Added `local_model_testing/` to `.gitignore`.
+- Verification: `python -m py_compile local_model_testing/quick_eval_best.py local_model_testing/quick_infer_best.py` -> success.
+- Verification: `python local_model_testing/quick_eval_best.py --help` -> success.
+- Verification: `python local_model_testing/quick_infer_best.py --help` -> success.
+- Follow-up: run `quick_eval_best.py` with your dataset root to validate first-epoch `models/best.pt` quality.
+
+## Pass 2026-04-07-14
+- Updated: src/face_model_core/utils.py
+- Updated: src/face_model_core/data.py
+- Updated: src/face_model_core/train.py
+- Updated: scripts/colab_shell_2_train.py
+- Updated: docs/project_working_session/REPO_CONTEXT.md
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Full GPU utilization overhaul. Enabled `cudnn.benchmark` for fixed-size input speedup. Added `persistent_workers` and `prefetch_factor=4` to dataloaders to eliminate worker restart overhead and keep GPU fed. Moved loss criterion to GPU. Added GPU memory logging (allocated + reserved) at model load and per epoch. Bumped Colab defaults to `BATCH_SIZE=256`, `NUM_WORKERS=4`, `LR=5e-3` to properly fill T4 15GB VRAM.
+- Verification: `pytest -q` -> 31 passed in 2.83s.
+- Follow-up: re-run shell 2 in Colab; expect 4-8GB allocated, 8-12GB reserved. If OOM, reduce to BATCH_SIZE=128.

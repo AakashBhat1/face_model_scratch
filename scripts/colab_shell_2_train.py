@@ -35,13 +35,13 @@ EMBEDDING_DIM = 512     # choices: 128, 512
 LOSS_TYPE = "arcface"  # choices: arcface, triplet
 
 EPOCHS = 12
-BATCH_SIZE = 128        # T4 can handle 128-256 at 112x112; increase to use more VRAM
-LEARNING_RATE = 3e-3    # scale LR with batch size (linear scaling rule)
+BATCH_SIZE = 256        # T4 has 15GB; 256 at 112x112 with AMP uses ~8-10GB
+LEARNING_RATE = 5e-3    # linear scaling: 256/32 = 8x, so 8 * 1e-3 ≈ 5e-3 (capped)
 IMAGE_SIZE = 112
-NUM_WORKERS = 2         # feed GPU faster; 0 starves it waiting on CPU
+NUM_WORKERS = 4         # Colab has 2 CPU cores; 4 workers keeps GPU pipeline full
 VAL_MAX_IMAGES = 1200
 VAL_THRESHOLD = 0.4
-MIXED_PRECISION = True
+MIXED_PRECISION = True  # AMP halves memory, doubles throughput on T4
 ALLOW_CPU_TRAINING = False
 
 RESOLVED_DATA_ROOT_FILE = REPO_DIR / ".colab_resolved_data_root.txt"

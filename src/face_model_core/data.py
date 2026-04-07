@@ -44,6 +44,7 @@ def create_dataloaders(
     train_ds = datasets.ImageFolder(root=str(train_dir), transform=train_t)
     val_ds = datasets.ImageFolder(root=str(val_dir), transform=val_t)
 
+    persistent = num_workers > 0
     train_loader = DataLoader(
         train_ds,
         batch_size=batch_size,
@@ -51,6 +52,8 @@ def create_dataloaders(
         num_workers=num_workers,
         pin_memory=True,
         drop_last=True,
+        persistent_workers=persistent,
+        prefetch_factor=4 if num_workers > 0 else None,
     )
     val_loader = DataLoader(
         val_ds,
@@ -59,5 +62,7 @@ def create_dataloaders(
         num_workers=num_workers,
         pin_memory=True,
         drop_last=False,
+        persistent_workers=persistent,
+        prefetch_factor=4 if num_workers > 0 else None,
     )
     return train_loader, val_loader, len(train_ds.classes), train_ds.classes

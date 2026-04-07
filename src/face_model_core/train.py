@@ -63,11 +63,15 @@ def train_model(config: TrainConfig) -> Path:
 
     if config.loss_type == "arcface":
         head = ArcFaceHead(embedding_dim=config.embedding_dim, num_classes=num_classes).to(device)
-        criterion: nn.Module = ArcFaceLoss(margin=config.arcface_margin, scale=config.arcface_scale)
+        criterion: nn.Module = ArcFaceLoss(margin=config.arcface_margin, scale=config.arcface_scale).to(device)
         params = list(model.parameters()) + list(head.parameters())
     else:
-        criterion = BatchTripletLoss(margin=config.triplet_margin)
+        criterion = BatchTripletLoss(margin=config.triplet_margin).to(device)
         params = list(model.parameters())
+
+    if device.type == "cuda":
+        gpu_mb = torch.cuda.memory_allocated(device) / 1024 / 1024
+        print(f"GPU memory after model load: {gpu_mb:.0f} MB", flush=True)
 
     optimizer = AdamW(params=params, lr=config.learning_rate, weight_decay=config.weight_decay)
     use_amp = bool(config.mixed_precision and device.type == "cuda")
@@ -133,10 +137,15 @@ def train_model(config: TrainConfig) -> Path:
         )
 
         train_loss = epoch_loss / max(len(train_loader), 1)
+        gpu_info = ""
+        if device.type == "cuda":
+            alloc_mb = torch.cuda.memory_allocated(device) / 1024 / 1024
+            reserved_mb = torch.cuda.memory_reserved(device) / 1024 / 1024
+            gpu_info = f" gpu_alloc={alloc_mb:.0f}MB gpu_reserved={reserved_mb:.0f}MB"
         print(
             f"epoch={epoch} train_loss={train_loss:.4f} "
             f"same_mean={metrics['same_mean']:.4f} diff_mean={metrics['diff_mean']:.4f} "
-            f"pair_acc={metrics['pair_acc']:.4f}",
+            f"pair_acc={metrics['pair_acc']:.4f}{gpu_info}",
             flush=True,
         )
 
