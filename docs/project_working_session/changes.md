@@ -211,3 +211,24 @@
 - Notes: Overhauled checkpoint strategy to fix Drive I/O hangs. Training now uses local SSD (`/content/checkpoints/`) for all checkpoint reads/writes — fast and reliable. Drive is used only for backup: pulled on startup, synced after each epoch via new `--backup-dir` CLI flag and `backup_dir` config field. Reduced `NUM_WORKERS` from 4 to 2 to avoid Colab deadlocks.
 - Verification: `pytest -q` -> 31 passed in 2.95s.
 - Follow-up: push, re-run shell 1 + shell 2. Expect real-time logs and per-epoch Drive sync messages.
+
+## Pass 2026-04-07-20
+- Added: local_model_testing/scripts/compare_two_faces.py
+- Updated: local_model_testing/README.md
+- Updated: docs/project_working_session/REPO_CONTEXT.md
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Added a dedicated local script to embed two input images and compute cosine similarity confidence (`cosine_score`, `confidence_percent`, `match`) without building a gallery.
+- Verification: `python -m py_compile local_model_testing/scripts/compare_two_faces.py` -> success.
+- Verification: `python local_model_testing/scripts/compare_two_faces.py` -> success.
+- Follow-up: replace defaults via `--image-a` and `--image-b` to compare any two photos.
+
+## Pass 2026-04-07-21
+- Updated: src/face_model_core/model.py
+- Updated: src/face_model_core/train.py
+- Updated: src/face_model_core/checkpoint.py
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Two major training speed improvements. (1) Switched backbone to use pretrained ImageNet weights (`pretrained=True`) — the backbone already knows visual features, so only the embedding layer and ArcFace head need face-specific learning. Converges in 3-5 epochs vs 12+ from scratch. (2) Added cosine annealing LR scheduler with 1-epoch linear warmup — better learning rate trajectory for faster and more stable convergence. Scheduler state is checkpointed for correct resume.
+- Verification: `pytest -q` -> 31 passed in 3.70s.
+- Follow-up: delete old from-scratch checkpoints and retrain with pretrained backbone. Expect significantly faster convergence.

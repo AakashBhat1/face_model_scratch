@@ -30,6 +30,7 @@ def save_checkpoint(
     scaler: torch.cuda.amp.GradScaler | None = None,
     head: nn.Module | None = None,
     class_names: list[str] | None = None,
+    scheduler: Any | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload: dict[str, Any] = {
@@ -44,6 +45,8 @@ def save_checkpoint(
         payload["scaler_state"] = scaler.state_dict()
     if head is not None:
         payload["head_state"] = head.state_dict()
+    if scheduler is not None:
+        payload["scheduler_state"] = scheduler.state_dict()
     # Atomic save: write to temp file then rename so a crash mid-save
     # never leaves a corrupted checkpoint.
     tmp_path = path.with_suffix(".pt.tmp")

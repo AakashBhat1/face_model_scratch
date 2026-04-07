@@ -9,6 +9,7 @@ import torch
 from torch import nn
 from torch.amp import GradScaler, autocast
 from torch.optim import AdamW
+from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 
 from face_model_core.checkpoint import load_checkpoint, save_checkpoint
 from face_model_core.config import TrainConfig
@@ -79,6 +80,12 @@ def train_model(config: TrainConfig) -> Path:
     use_amp = bool(config.mixed_precision and device.type == "cuda")
     scaler = GradScaler("cuda", enabled=use_amp)
 
+    # LR scheduler: 1-epoch linear warmup then cosine decay to near-zero.
+    warmup_epochs = 1
+    warmup_scheduler = LinearLR(optimizer, start_factor=0.1, total_iters=warmup_epochs)
+    cosine_scheduler = CosineAnnealingLR(optimizer, T_max=max(config.epochs - warmup_epochs, 1))
+    scheduler = SequentialLR(optimizer, [warmup_scheduler, cosine_scheduler], milestones=[warmup_epochs])
+
     if resume_checkpoint is not None:
         model.load_state_dict(resume_checkpoint["model_state"])
         optimizer.load_state_dict(resume_checkpoint["optimizer_state"])
@@ -90,6 +97,9 @@ def train_model(config: TrainConfig) -> Path:
 
         if "scaler_state" in resume_checkpoint:
             scaler.load_state_dict(resume_checkpoint["scaler_state"])
+
+        if "scheduler_state" in resume_checkpoint:
+            scheduler.load_state_dict(resume_checkpoint["scheduler_state"])
 
         print(f"Resumed from {config.resume_from} at epoch {start_epoch}")
 
@@ -144,10 +154,12 @@ def train_model(config: TrainConfig) -> Path:
             alloc_mb = torch.cuda.memory_allocated(device) / 1024 / 1024
             reserved_mb = torch.cuda.memory_reserved(device) / 1024 / 1024
             gpu_info = f" gpu_alloc={alloc_mb:.0f}MB gpu_reserved={reserved_mb:.0f}MB"
+        current_lr = optimizer.param_groups[0]["lr"]
+        scheduler.step()
         print(
             f"epoch={epoch} train_loss={train_loss:.4f} "
             f"same_mean={metrics['same_mean']:.4f} diff_mean={metrics['diff_mean']:.4f} "
-            f"pair_acc={metrics['pair_acc']:.4f}{gpu_info}",
+            f"pair_acc={metrics['pair_acc']:.4f} lr={current_lr:.6f}{gpu_info}",
             flush=True,
         )
 
@@ -163,6 +175,7 @@ def train_model(config: TrainConfig) -> Path:
                 scaler=scaler,
                 head=head,
                 class_names=class_names,
+                scheduler=scheduler,
             )
 
         save_checkpoint(

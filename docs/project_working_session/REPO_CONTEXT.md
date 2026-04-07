@@ -18,6 +18,7 @@ Face Recognition Model (Core Only) for learning face embeddings from identity-la
 - `scripts/colab_shell_2_train.py`: Colab shell 2 for training/resume; trains on local SSD (`/content/checkpoints/`) and syncs to Drive after each epoch via `--backup-dir`; pulls existing Drive checkpoints on startup for resume; default T4 settings: `BATCH_SIZE=512`, `NUM_WORKERS=2`, `LR=5e-3`, AMP enabled.
 - `local_model_testing/scripts/quick_eval_best.py`: local smoke-test script (untracked) that evaluates a checkpoint (default `models/best.pt`) on validation pairs and prints `same_mean`, `diff_mean`, and `pair_acc`.
 - `local_model_testing/scripts/quick_infer_best.py`: local smoke-test script (untracked) that builds a gallery from `val/` and runs one query image match against it.
+- `local_model_testing/scripts/compare_two_faces.py`: local script (untracked) that embeds two images directly and computes cosine similarity plus confidence output.
 - `local_model_testing/input/query_images/my_face.jpg`: default query image location for face scan smoke tests.
 - `local_model_testing/output/galleries/`: auto-generated gallery output folder for local tests.
 - `tests/`: unit tests for config, model, losses, similarity, checkpointing, CLI, inference, and validation including malformed gallery and threshold edge cases.
