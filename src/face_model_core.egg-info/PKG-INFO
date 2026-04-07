@@ -1,0 +1,94 @@
+Metadata-Version: 2.4
+Name: face-model-core
+Version: 0.1.0
+Summary: Core face embedding training and inference pipeline
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: torch>=2.2.0
+Requires-Dist: torchvision>=0.17.0
+Requires-Dist: numpy>=1.26.0
+Requires-Dist: Pillow>=10.0.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0.0; extra == "dev"
+
+# Face Recognition Model (Core Only)
+
+This project implements the core face embedding pipeline from the PRD:
+
+- Train a model that maps a face image to an embedding vector.
+- Same identity embeddings should be close.
+- Different identity embeddings should be far.
+
+Current scope:
+
+- Training on VGGFace2-style folder data (`train/`, `val/`).
+- Backbones: ResNet-50 or MobileNetV2.
+- Embedding dimensions: 128 or 512.
+- Losses: ArcFace (default) or Triplet Loss.
+- Mixed precision training on CUDA.
+- Minimal similarity validation on validation identities.
+- Inference utilities for image to embedding and gallery matching.
+
+## Dataset Layout
+
+Expected folder layout:
+
+data/
+  train/
+    person_0001/
+      img1.jpg
+      img2.jpg
+    person_0002/
+      ...
+  val/
+    person_0001/
+      ...
+    person_0002/
+      ...
+
+## Install
+
+1. Create/activate a Python environment.
+2. Install dependencies:
+
+   pip install -r requirements.txt
+
+## Train
+
+Example:
+
+python -m face_model_core.cli train \
+  --data-root ./data \
+  --backbone resnet50 \
+  --embedding-dim 512 \
+  --loss-type arcface \
+  --epochs 12 \
+  --batch-size 32 \
+  --learning-rate 1e-3 \
+  --checkpoint-dir ./checkpoints
+
+## Build Gallery
+
+python -m face_model_core.cli build-gallery \
+  --gallery-root ./data/val \
+  --checkpoint ./checkpoints/best.pt \
+  --output ./artifacts/gallery.npz
+
+## Infer
+
+python -m face_model_core.cli infer \
+  --image ./sample.jpg \
+  --checkpoint ./checkpoints/best.pt \
+  --gallery ./artifacts/gallery.npz \
+  --threshold 0.4
+
+## Output Artifacts
+
+- Model checkpoints: `.pt`
+- Optional gallery embeddings: `.npz`
+
+## Notes
+
+- For slower environments, reduce image size to 112 and use MobileNetV2.
+- Save checkpoints regularly when using Colab.
+- This repo intentionally excludes large-scale benchmarking and deployment.

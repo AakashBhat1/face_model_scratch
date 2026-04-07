@@ -1,0 +1,198 @@
+# Face Recognition Model (Core Only)
+
+This repository implements the face embedding core from your PRD.
+
+## 1. Objective
+
+Train a model that maps a face image to an embedding vector such that:
+
+- Same person: embeddings are close.
+- Different people: embeddings are far.
+
+This scope intentionally excludes large-scale benchmarking and production deployment.
+
+## 2. Dataset
+
+Primary dataset target: VGGFace2 subset style layout.
+
+Expected structure:
+
+data/
+  train/
+    person_0001/
+      img1.jpg
+      img2.jpg
+    person_0002/
+      ...
+  val/
+    person_0001/
+      ...
+    person_0002/
+      ...
+
+Usage:
+
+- Train on `train/`.
+- Validate on `val/`.
+- No separate test split is required for this stage.
+
+## 3. System Pipeline
+
+Training pipeline:
+
+1. Load image from dataset.
+2. Apply augmentation.
+3. Forward through CNN backbone.
+4. Project to embedding vector.
+5. Compute metric-learning loss.
+6. Backpropagate and update weights.
+
+Inference pipeline:
+
+1. Input face image.
+2. Convert to embedding.
+3. Compare with stored embeddings using cosine similarity.
+4. Return closest identity and match/no-match decision.
+
+## 4. Model Design
+
+Backbones:
+
+- `resnet50` (recommended default)
+- `mobilenet_v2` (faster/lighter option)
+
+Embedding dimensions:
+
+- `128`
+- `512`
+
+Loss functions:
+
+- `arcface` (default)
+- `triplet` (batch-hard variant)
+
+## 5. Training Configuration (Colab-friendly defaults)
+
+Defaults in this repo:
+
+- Batch size: `32`
+- Epochs: `12` (typical target range 10 to 20)
+- Optimizer: `AdamW`
+- Learning rate: `1e-3`
+- Mixed precision: enabled by default (used automatically on CUDA)
+
+Augmentations:
+
+- Random crop
+- Horizontal flip
+- Brightness/contrast jitter
+
+## 6. Estimated Training Time
+
+For around 185K images (hardware dependent):
+
+- 1 epoch: about 45 to 90 minutes
+- 10 to 15 epochs: about 8 to 18 hours
+- With Colab interruptions: often 1 to 2 days wall-clock
+
+## 7. Outputs
+
+Model outputs:
+
+- Embedding generator from image to vector
+- Example output: `[0.12, -0.44, ..., 0.89]`
+
+Saved artifacts:
+
+- Model checkpoints: `.pt` (`best.pt`, `last.pt`)
+- Optional gallery embeddings: `.npz`
+
+## 8. Minimal Evaluation
+
+Current validation is intentionally lightweight:
+
+- Sample identity pairs from validation embeddings
+- Report same-identity similarity mean
+- Report different-identity similarity mean
+- Report threshold-based pair accuracy
+
+## 9. Storage
+
+Recommended persistence:
+
+- Save checkpoints frequently during training
+- Save gallery embeddings when needed
+- Use Google Drive mount in Colab for long runs
+
+## 10. Risks and Mitigations
+
+| Risk | Mitigation |
+|------|------------|
+| Overfitting | Use augmentation and monitor validation pair metrics |
+| Slow training | Use `mobilenet_v2`, lower image size, lower embedding dim |
+| Colab timeout | Save checkpoints every epoch and resume |
+
+## 11. Deliverables
+
+This repository delivers:
+
+- Trained face embedding model checkpoints
+- Inference function (image to embedding)
+- Similarity comparison flow (gallery match/no-match)
+
+## 12. Final Scope
+
+In scope:
+
+- Face embedding model core
+- Minimal validation and inference utilities
+
+Out of scope for now:
+
+- Large-scale nearest-neighbor search service
+- Full benchmark suite
+- Production deployment system
+
+## 13. Next Step Extensions
+
+After this core is stable, extend to:
+
+- Face verification API/service
+- Face search index (for example FAISS)
+- Real-time webcam recognition
+
+## Quick Start
+
+1. Create and activate venv.
+2. Install dependencies.
+3. Train.
+4. Build gallery.
+5. Run inference.
+
+Commands:
+
+```bash
+python -m pip install -r requirements.txt
+python -m pip install -e .
+
+python -m face_model_core.cli train \
+  --data-root ./data \
+  --backbone resnet50 \
+  --embedding-dim 512 \
+  --loss-type arcface \
+  --epochs 12 \
+  --batch-size 32 \
+  --learning-rate 1e-3 \
+  --checkpoint-dir ./checkpoints
+
+python -m face_model_core.cli build-gallery \
+  --gallery-root ./data/val \
+  --checkpoint ./checkpoints/best.pt \
+  --output ./artifacts/gallery.npz
+
+python -m face_model_core.cli infer \
+  --image ./sample.jpg \
+  --checkpoint ./checkpoints/best.pt \
+  --gallery ./artifacts/gallery.npz \
+  --threshold 0.4
+```
