@@ -142,7 +142,7 @@
 - Updated: docs/project_working_session/REPO_CONTEXT.md
 - Updated: docs/project_working_session/CURRENT_STEP.md
 - Updated: docs/project_working_session/changes.md
-- Notes: Added a separate local testing folder so checkpoint testing can run without any training-code edits. `quick_eval_best.py` reports validation pair metrics, validates CLI input ranges, and uses safe `weights_only` loading by default with explicit `--allow-unsafe-deserialization` opt-in for trusted legacy checkpoints only. `quick_infer_best.py` builds a gallery and runs a query match, requires explicit `--image`, and blocks query-in-gallery by default unless `--allow-query-in-gallery` is set. Added `local_model_testing/` to `.gitignore`.
+- Notes: Added a separate local testing folder so checkpoint testing can run without any training-code edits. `quick_eval_best.py` reports validation pair metrics, validates CLI input ranges, and uses safe `weights_only` loading by default with explicit `--allow-unsafe-deserialization` opt-in for trusted legacy checkpoints only. `quick_infer_best.py` builds a gallery and runs a query match, requires explicit `--image`, blocks query-in-gallery by default unless `--allow-query-in-gallery` is set, and safely handles Windows cross-drive path comparisons. Added `local_model_testing/` to `.gitignore`.
 - Verification: `python -m py_compile local_model_testing/quick_eval_best.py local_model_testing/quick_infer_best.py` -> success.
 - Verification: `python local_model_testing/quick_eval_best.py --help` -> success.
 - Verification: `python local_model_testing/quick_infer_best.py --help` -> success.
