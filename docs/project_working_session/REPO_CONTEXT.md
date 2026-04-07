@@ -14,6 +14,8 @@ Face Recognition Model (Core Only) for learning face embeddings from identity-la
 - `src/face_model_core/cli.py`: `train`, `build-gallery`, and `infer` commands with bounded threshold parsing, mixed precision opt-out, and `--resume-from` checkpoint continuation.
 - `src/face_model_core/checkpoint.py`: checkpoint save/load utilities with weights-only safe loading support.
 - `scripts/colab_autorun_train.py`: one-cell Colab bootstrap script that mounts Drive, clones/pulls repo, installs deps, optionally downloads dataset from KaggleHub, auto-resolves dataset root (`train/` + `val/`), checks GPU runtime, and starts/resumes training with unbuffered Python output; default Colab worker setting is `NUM_WORKERS=0` for stability.
+- `scripts/colab_shell_1_setup.py`: Colab shell 1 for setup (mount Drive, sync repo, install deps, resolve dataset root, and prepare checkpoint directory).
+- `scripts/colab_shell_2_train.py`: Colab shell 2 for training/resume (auto-reads resolved dataset root and can auto-resume from `last.pt`).
 - `tests/`: unit tests for config, model, losses, similarity, checkpointing, CLI, inference, and validation including malformed gallery and threshold edge cases.
 
 ## Key Dependencies

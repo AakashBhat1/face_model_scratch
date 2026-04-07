@@ -96,3 +96,15 @@
 - Verification: `".venv/Scripts/python.exe" -m py_compile "scripts/colab_autorun_train.py"` -> success.
 - Verification: `".venv/Scripts/python.exe" -m pytest -q` -> 31 passed.
 - Follow-up: after stable runs are confirmed, optionally test `NUM_WORKERS=1` for speed.
+
+## Pass 2026-04-07-09
+- Added: scripts/colab_shell_1_setup.py
+- Added: scripts/colab_shell_2_train.py
+- Updated: README.md
+- Updated: docs/project_working_session/REPO_CONTEXT.md
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Added split Colab workflow with two scripts: shell 1 performs setup/mount/sync/dependency+dataset resolution, and shell 2 runs train/resume so users can manually place `best.pt`/`last.pt` between steps.
+- Verification: `".venv/Scripts/python.exe" -m py_compile "scripts/colab_shell_1_setup.py" "scripts/colab_shell_2_train.py" "scripts/colab_autorun_train.py"` -> success.
+- Verification: `".venv/Scripts/python.exe" -m pytest -q` -> 31 passed.
+- Follow-up: use shell 1 then shell 2 in Colab; optionally set `RESUME_FROM` or rely on auto-resume from `last.pt`.

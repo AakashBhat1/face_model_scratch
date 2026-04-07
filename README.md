@@ -214,3 +214,19 @@ In `scripts/colab_autorun_train.py` set:
 - `KAGGLE_DATASET = "hearfool/vggface2"`
 
 Then run the script in Colab. If your Kaggle credentials are required, configure Kaggle access in Colab first.
+
+## Colab Two-Shell Workflow
+
+If you want to split setup and training into two separate Colab cells/scripts:
+
+1. Run `scripts/colab_shell_1_setup.py`
+2. Upload or verify `best.pt` / `last.pt` in your checkpoint folder if needed
+3. Run `scripts/colab_shell_2_train.py`
+
+Notes:
+
+- Shell 1 writes the resolved dataset root into `/content/face_model_scratch/.colab_resolved_data_root.txt`.
+- Shell 2 reads that file and starts training from the same dataset root.
+- Shell 2 can auto-resume from `last.pt` if it exists in the configured checkpoint directory.
+- If you switch Google accounts (new Drive), upload your previous `last.pt` to `/content/last.pt` in Colab before running shell 2; it will be imported automatically.
+- You can also set `RESUME_FROM_URL` in shell 2 to download a checkpoint and continue from it.
