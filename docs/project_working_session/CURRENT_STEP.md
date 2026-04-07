@@ -6,7 +6,7 @@ Owner: GitHub Copilot
 ## Where We Are
 - Step ID: colab-kagglehub-autorun
 - Status: READY
-- Summary: Added runtime progress visibility improvements so Colab shows regular training heartbeat logs and immediate output flushing.
+- Summary: Added additional startup visibility logs so Colab now prints dataloader scan/build progress before the first batch heartbeat.
 
 ## Completed In This Pass
 - Added missing inference and validation tests.
@@ -27,11 +27,12 @@ Owner: GitHub Copilot
 - Added dataset root auto-detection for downloaded datasets containing `train/` and `val/`.
 - Added per-epoch batch heartbeat logs (`step/total`) during training.
 - Added unbuffered Python launch in Colab script to surface logs immediately.
+- Added explicit startup logs for dataset scan/dataloader creation and epoch start.
 
 ## Next Exact Action
 - Command: `Run scripts/colab_autorun_train.py in Colab and confirm periodic logs like epoch=<n> step=<k>/<total> appear`
 - File to edit next: `scripts/colab_autorun_train.py`
-- Expected result: Colab output shows continuous heartbeat progress during training instead of long silent waits.
+- Expected result: Colab output shows startup scan logs, then epoch-start and periodic batch heartbeat logs during training.
 
 ## If Blocked
 - Blocker: Dataset path missing or incorrect directory structure.

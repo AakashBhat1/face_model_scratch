@@ -8,7 +8,7 @@ Face Recognition Model (Core Only) for learning face embeddings from identity-la
 - `src/face_model_core/data.py`: dataset loading from `train/` and `val/` with augmentation.
 - `src/face_model_core/model.py`: face embedding backbones (`resnet50`, `mobilenet_v2`) and ArcFace head.
 - `src/face_model_core/losses.py`: ArcFace loss and batch-hard triplet loss with stable zero-valid-triplet backward behavior.
-- `src/face_model_core/train.py`: end-to-end training loop with AdamW, AMP support, checkpointing, secure checkpoint resume support, and periodic batch heartbeat logs for long-epoch visibility.
+- `src/face_model_core/train.py`: end-to-end training loop with AdamW, AMP support, checkpointing, secure checkpoint resume support, explicit dataloader-startup logs, and periodic batch heartbeat logs for long-epoch visibility.
 - `src/face_model_core/validation.py`: minimal pairwise similarity evaluation on validation embeddings.
 - `src/face_model_core/inference.py`: image to embedding, gallery build, and gallery matching with threshold and gallery-shape validation.
 - `src/face_model_core/cli.py`: `train`, `build-gallery`, and `infer` commands with bounded threshold parsing, mixed precision opt-out, and `--resume-from` checkpoint continuation.

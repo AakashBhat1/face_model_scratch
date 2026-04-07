@@ -20,6 +20,7 @@ from face_model_core.validation import collect_embeddings, quick_similarity_eval
 def train_model(config: TrainConfig) -> Path:
     set_seed(config.seed)
     device = get_device()
+    print(f"Initializing training on device={device.type}", flush=True)
 
     resume_checkpoint: dict | None = None
     start_epoch = 1
@@ -40,11 +41,21 @@ def train_model(config: TrainConfig) -> Path:
                 return best_path
             return config.resume_from
 
+    print(
+        f"Scanning dataset and building dataloaders from data_root={config.data_root} "
+        f"(num_workers={config.num_workers}, batch_size={config.batch_size})",
+        flush=True,
+    )
     train_loader, val_loader, num_classes, class_names = create_dataloaders(
         data_root=config.data_root,
         image_size=config.image_size,
         batch_size=config.batch_size,
         num_workers=config.num_workers,
+    )
+    print(
+        f"Dataloaders ready: train_steps={len(train_loader)} val_steps={len(val_loader)} "
+        f"num_classes={num_classes}",
+        flush=True,
     )
 
     model = FaceEmbeddingModel(backbone=config.backbone, embedding_dim=config.embedding_dim).to(device)
@@ -77,6 +88,7 @@ def train_model(config: TrainConfig) -> Path:
         print(f"Resumed from {config.resume_from} at epoch {start_epoch}")
 
     for epoch in range(start_epoch, config.epochs + 1):
+        print(f"Starting epoch {epoch}/{config.epochs}", flush=True)
         model.train()
         epoch_loss = 0.0
         total_steps = len(train_loader)
