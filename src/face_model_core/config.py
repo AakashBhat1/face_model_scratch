@@ -19,6 +19,9 @@ class TrainConfig:
     batch_size: int = 32
     epochs: int = 12
     learning_rate: float = 1e-3
+    backbone_lr: float = 1e-5
+    freeze_backbone_epochs: int = 2
+    grad_clip_norm: float = 5.0
     weight_decay: float = 1e-4
     num_workers: int = 2
     mixed_precision: bool = True
@@ -45,6 +48,12 @@ class TrainConfig:
             raise ValueError("epochs must be positive")
         if self.learning_rate <= 0:
             raise ValueError("learning_rate must be positive")
+        if self.backbone_lr <= 0:
+            raise ValueError("backbone_lr must be positive")
+        if self.freeze_backbone_epochs < 0:
+            raise ValueError("freeze_backbone_epochs must be non-negative")
+        if self.grad_clip_norm <= 0:
+            raise ValueError("grad_clip_norm must be positive")
         if self.image_size <= 0:
             raise ValueError("image_size must be positive")
         if self.triplet_margin < 0:

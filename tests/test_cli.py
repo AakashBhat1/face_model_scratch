@@ -11,6 +11,9 @@ def test_cli_parsing_train_command() -> None:
     assert args.command == "train"
     assert args.backbone == "resnet50"
     assert args.mixed_precision is True
+    assert args.backbone_lr == 1e-5
+    assert args.freeze_backbone_epochs == 2
+    assert args.grad_clip_norm == 5.0
 
 
 def test_cli_train_allows_disabling_mixed_precision() -> None:

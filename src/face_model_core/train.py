@@ -67,18 +67,26 @@ def train_model(config: TrainConfig) -> Path:
     if config.loss_type == "arcface":
         head = ArcFaceHead(embedding_dim=config.embedding_dim, num_classes=num_classes).to(device)
         criterion: nn.Module = ArcFaceLoss(margin=config.arcface_margin, scale=config.arcface_scale).to(device)
-        params = list(model.parameters()) + list(head.parameters())
     else:
         criterion = BatchTripletLoss(margin=config.triplet_margin).to(device)
-        params = list(model.parameters())
+
+    param_groups = [
+        {"params": list(model.backbone.parameters()), "lr": config.backbone_lr},
+        {"params": list(model.embedding.parameters()), "lr": config.learning_rate},
+    ]
+    if head is not None:
+        param_groups.append({"params": list(head.parameters()), "lr": config.learning_rate})
 
     if device.type == "cuda":
         gpu_mb = torch.cuda.memory_allocated(device) / 1024 / 1024
         print(f"GPU memory after model load: {gpu_mb:.0f} MB", flush=True)
 
-    optimizer = AdamW(params=params, lr=config.learning_rate, weight_decay=config.weight_decay)
+    optimizer = AdamW(params=param_groups, weight_decay=config.weight_decay)
     use_amp = bool(config.mixed_precision and device.type == "cuda")
     scaler = GradScaler("cuda", enabled=use_amp)
+    params_to_clip: list[nn.Parameter] = list(model.parameters())
+    if head is not None:
+        params_to_clip.extend(list(head.parameters()))
 
     # LR scheduler: 1-epoch linear warmup then cosine decay to near-zero.
     warmup_epochs = 1
@@ -88,17 +96,27 @@ def train_model(config: TrainConfig) -> Path:
 
     if resume_checkpoint is not None:
         model.load_state_dict(resume_checkpoint["model_state"])
-        optimizer.load_state_dict(resume_checkpoint["optimizer_state"])
+        optimizer_state_loaded = True
+        if "optimizer_state" in resume_checkpoint:
+            try:
+                optimizer.load_state_dict(resume_checkpoint["optimizer_state"])
+            except ValueError:
+                optimizer_state_loaded = False
+                print(
+                    "Resume checkpoint optimizer state is incompatible with current "
+                    "optimizer layout; continuing with fresh optimizer/scheduler state.",
+                    flush=True,
+                )
 
         if head is not None:
             if "head_state" not in resume_checkpoint:
                 raise ValueError("Missing head_state in resume checkpoint for arcface training")
             head.load_state_dict(resume_checkpoint["head_state"])
 
-        if "scaler_state" in resume_checkpoint:
+        if optimizer_state_loaded and "scaler_state" in resume_checkpoint:
             scaler.load_state_dict(resume_checkpoint["scaler_state"])
 
-        if "scheduler_state" in resume_checkpoint:
+        if optimizer_state_loaded and "scheduler_state" in resume_checkpoint:
             scheduler.load_state_dict(resume_checkpoint["scheduler_state"])
 
         print(f"Resumed from {config.resume_from} at epoch {start_epoch}")
@@ -106,6 +124,18 @@ def train_model(config: TrainConfig) -> Path:
     for epoch in range(start_epoch, config.epochs + 1):
         print(f"Starting epoch {epoch}/{config.epochs}", flush=True)
         model.train()
+        if epoch <= config.freeze_backbone_epochs:
+            for p in model.backbone.parameters():
+                p.requires_grad = False
+            # Keep BatchNorm stats stable while the backbone is frozen.
+            model.backbone.eval()
+        else:
+            for p in model.backbone.parameters():
+                p.requires_grad = True
+            model.backbone.train()
+            if epoch == config.freeze_backbone_epochs + 1:
+                print(f"Unfreezing backbone at epoch {epoch}", flush=True)
+
         epoch_loss = 0.0
         total_steps = len(train_loader)
         for step, (images, labels) in enumerate(train_loader, start=1):
@@ -123,6 +153,8 @@ def train_model(config: TrainConfig) -> Path:
                     loss = criterion(embeddings, labels)
 
             scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(params_to_clip, max_norm=config.grad_clip_norm)
             scaler.step(optimizer)
             scaler.update()
             step_loss = float(loss.detach().item())
@@ -154,12 +186,18 @@ def train_model(config: TrainConfig) -> Path:
             alloc_mb = torch.cuda.memory_allocated(device) / 1024 / 1024
             reserved_mb = torch.cuda.memory_reserved(device) / 1024 / 1024
             gpu_info = f" gpu_alloc={alloc_mb:.0f}MB gpu_reserved={reserved_mb:.0f}MB"
-        current_lr = optimizer.param_groups[0]["lr"]
+        current_backbone_lr = optimizer.param_groups[0]["lr"]
+        current_main_lr = optimizer.param_groups[1]["lr"]
         scheduler.step()
         print(
             f"epoch={epoch} train_loss={train_loss:.4f} "
             f"same_mean={metrics['same_mean']:.4f} diff_mean={metrics['diff_mean']:.4f} "
-            f"pair_acc={metrics['pair_acc']:.4f} lr={current_lr:.6f}{gpu_info}",
+            f"pair_acc={metrics['pair_acc']:.4f} "
+            f"precision={metrics['precision']:.4f} recall={metrics['recall']:.4f} "
+            f"f1={metrics['f1']:.4f} far={metrics['far']:.4f} frr={metrics['frr']:.4f} "
+            f"eer={metrics['eer']:.4f} auc={metrics['auc_roc']:.4f} "
+            f"optimal_thr={metrics['optimal_threshold']:.4f} "
+            f"lr_backbone={current_backbone_lr:.6f} lr_main={current_main_lr:.6f}{gpu_info}",
             flush=True,
         )
 
@@ -188,6 +226,7 @@ def train_model(config: TrainConfig) -> Path:
             scaler=scaler,
             head=head,
             class_names=class_names,
+            scheduler=scheduler,
         )
 
         # Sync checkpoints to backup dir (e.g. Google Drive) after each epoch.

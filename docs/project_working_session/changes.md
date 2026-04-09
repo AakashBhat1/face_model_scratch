@@ -1,5 +1,42 @@
 # Changes Log
 
+## Pass 2026-04-09-02
+- Updated: src/face_model_core/validation.py
+- Updated: src/face_model_core/train.py
+- Updated: scripts/colab_shell_2_train.py
+- Updated: tests/test_validation.py
+- Updated: tests/test_train_resume.py
+- Updated: docs/project_working_session/REPO_CONTEXT.md
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Added comprehensive validation metrics (precision, recall, F1, FAR, FRR, EER, AUC-ROC, optimal threshold) via threshold sweep over same/diff pair scores. Updated training loop to log all new metrics per epoch. Bumped Colab batch size from 512 to 1024 for better T4 GPU utilization. Fixed NumPy 2.0 compatibility (np.trapz → np.trapezoid).
+- Verification: `pytest -q` -> 32 passed in 2.82s.
+- Follow-up: retrain fresh in Colab, monitor new metrics for model health.
+
+## Pass 2026-04-09-01
+- Updated: src/face_model_core/config.py
+- Updated: src/face_model_core/cli.py
+- Updated: src/face_model_core/train.py
+- Updated: scripts/colab_shell_2_train.py
+- Updated: tests/test_config.py
+- Updated: tests/test_cli.py
+- Updated: tests/test_train_resume.py
+- Updated: docs/project_working_session/REPO_CONTEXT.md
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Implemented embedding-collapse stabilization plan with differential optimizer LRs (backbone vs embedding/head), early backbone freeze, gradient clipping, and Colab wiring for new knobs. Added resume compatibility fallback for legacy optimizer-state checkpoints and persisted scheduler state in both `best.pt` and `last.pt` for LR continuity on auto-resume.
+- Verification: `".venv/Scripts/python.exe" -m pytest -q` -> 32 passed.
+- Additional review: code-reviewer final pass reported no High/Critical issues.
+
+## Pass 2026-04-08-01
+- Added: .github/prompts/plan-local-model-testing-with-trained-checkpoint.prompt.md
+- Updated: docs/project_working_session/REPO_CONTEXT.md
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Added a reusable workspace chat prompt that generates a concrete migration plan for using local trained `.pt` checkpoints in `local_model_testing/` instead of Buffalo-style local testing assumptions.
+- Verification: prompt file syntax checked manually (frontmatter + markdown sections).
+- Follow-up: run `/plan-local-model-testing-with-trained-checkpoint` with explicit model path and target flow details.
+
 ## Pass 2026-04-07-01
 - Updated: README.md
 - Updated: src/face_model_core/cli.py
@@ -232,3 +269,11 @@
 - Notes: Two major training speed improvements. (1) Switched backbone to use pretrained ImageNet weights (`pretrained=True`) — the backbone already knows visual features, so only the embedding layer and ArcFace head need face-specific learning. Converges in 3-5 epochs vs 12+ from scratch. (2) Added cosine annealing LR scheduler with 1-epoch linear warmup — better learning rate trajectory for faster and more stable convergence. Scheduler state is checkpointed for correct resume.
 - Verification: `pytest -q` -> 31 passed in 3.70s.
 - Follow-up: delete old from-scratch checkpoints and retrain with pretrained backbone. Expect significantly faster convergence.
+
+## Pass 2026-04-07-22
+- Updated: scripts/colab_shell_2_train.py
+- Updated: docs/project_working_session/CURRENT_STEP.md
+- Updated: docs/project_working_session/changes.md
+- Notes: Diagnosed model collapse from Colab run — `same_mean=1.0 diff_mean=1.0 pair_acc=0.5` means all embeddings identical (degenerate constant output). Caused by resuming old from-scratch weights over pretrained backbone + LR=5e-3 too aggressive for fine-tuning. Fixed: lowered `LEARNING_RATE` to 1e-3 (standard for pretrained fine-tuning), reduced `EPOCHS` to 8 (pretrained converges faster).
+- Verification: `pytest -q` -> 31 passed in 10.83s.
+- Follow-up: delete ALL old checkpoints on Drive and local, retrain fresh. Expect same_mean/diff_mean to diverge and pair_acc to climb within first 2-3 epochs.

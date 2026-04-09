@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(\".venv/Scripts/python.exe\" -m py_compile \"scripts/colab_shell_2_train.py\")",
-      "Bash(\".venv/Scripts/python.exe\" -m pytest -q)"
+      "Bash(\".venv/Scripts/python.exe\" -m pytest -q)",
+      "Bash(.venv/Scripts/python.exe -m pytest -q)"
     ]
   }
 }

@@ -12,10 +12,15 @@ from face_model_core.train import train_model
 class _DummyModel(torch.nn.Module):
     def __init__(self, embedding_dim: int) -> None:
         super().__init__()
-        self.linear = torch.nn.Linear(3 * 8 * 8, embedding_dim)
+        self.backbone = torch.nn.Sequential(
+            torch.nn.Flatten(),
+            torch.nn.Linear(3 * 8 * 8, 32),
+            torch.nn.ReLU(),
+        )
+        self.embedding = torch.nn.Linear(32, embedding_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = self.linear(x.view(x.shape[0], -1))
+        out = self.embedding(self.backbone(x))
         return torch.nn.functional.normalize(out, dim=1)
 
 
@@ -31,6 +36,27 @@ class _DummyHead(torch.nn.Module):
 def _build_resume_checkpoint(epoch: int, best_metric: float, embedding_dim: int = 128) -> dict:
     model = _DummyModel(embedding_dim=embedding_dim)
     head = _DummyHead(embedding_dim=embedding_dim, num_classes=2)
+    optimizer = torch.optim.AdamW(
+        params=[
+            {"params": list(model.backbone.parameters()), "lr": 1e-5},
+            {"params": list(model.embedding.parameters()), "lr": 1e-3},
+            {"params": list(head.parameters()), "lr": 1e-3},
+        ],
+        weight_decay=1e-4,
+    )
+    return {
+        "model_state": model.state_dict(),
+        "head_state": head.state_dict(),
+        "optimizer_state": optimizer.state_dict(),
+        "epoch": epoch,
+        "best_metric": best_metric,
+    }
+
+
+def _build_legacy_resume_checkpoint(epoch: int, best_metric: float, embedding_dim: int = 128) -> dict:
+    model = _DummyModel(embedding_dim=embedding_dim)
+    head = _DummyHead(embedding_dim=embedding_dim, num_classes=2)
+    # Legacy checkpoints used one flat optimizer parameter group.
     optimizer = torch.optim.AdamW(list(model.parameters()) + list(head.parameters()), lr=1e-3)
     return {
         "model_state": model.state_dict(),
@@ -129,6 +155,14 @@ def test_train_model_resumes_and_runs_next_epoch(monkeypatch, tmp_path: Path) ->
             "diff_mean": 0.1,
             "pair_acc": 0.5,
             "num_pairs": 2.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "far": 0.0,
+            "frr": 0.0,
+            "eer": 0.0,
+            "auc_roc": 1.0,
+            "optimal_threshold": 0.5,
         },
     )
 
@@ -151,6 +185,72 @@ def test_train_model_resumes_and_runs_next_epoch(monkeypatch, tmp_path: Path) ->
     assert (config.checkpoint_dir / "best.pt").exists()
     assert (config.checkpoint_dir / "last.pt").exists()
     assert load_calls["weights_only"] is False
+
+
+def test_train_model_resumes_with_legacy_optimizer_state(monkeypatch, tmp_path: Path) -> None:
+    checkpoint_path = tmp_path / "last.pt"
+    checkpoint_path.write_bytes(b"placeholder")
+
+    images = torch.randn(2, 3, 8, 8)
+    labels = torch.tensor([0, 1], dtype=torch.long)
+
+    monkeypatch.setattr("face_model_core.train.get_device", lambda: torch.device("cpu"))
+    monkeypatch.setattr(
+        "face_model_core.train.FaceEmbeddingModel",
+        lambda backbone, embedding_dim: _DummyModel(embedding_dim=embedding_dim),
+    )
+    monkeypatch.setattr("face_model_core.train.ArcFaceHead", _DummyHead)
+    monkeypatch.setattr(
+        "face_model_core.train.create_dataloaders",
+        lambda data_root, image_size, batch_size, num_workers: ([(images, labels)], [(images, labels)], 2, ["a", "b"]),
+    )
+    monkeypatch.setattr(
+        "face_model_core.train.load_checkpoint",
+        lambda path, map_location, weights_only=False: _build_legacy_resume_checkpoint(0, 0.1, embedding_dim=128),
+    )
+    monkeypatch.setattr(
+        "face_model_core.train.collect_embeddings",
+        lambda model, loader, device, max_images: (
+            np.array([[1.0, 0.0], [0.0, 1.0]], dtype=np.float32),
+            np.array([0, 1], dtype=np.int64),
+        ),
+    )
+    monkeypatch.setattr(
+        "face_model_core.train.quick_similarity_eval",
+        lambda embeddings, labels, threshold, seed: {
+            "same_mean": 0.9,
+            "diff_mean": 0.1,
+            "pair_acc": 0.5,
+            "num_pairs": 2.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "far": 0.0,
+            "frr": 0.0,
+            "eer": 0.0,
+            "auc_roc": 1.0,
+            "optimal_threshold": 0.5,
+        },
+    )
+
+    config = TrainConfig(
+        data_root=tmp_path,
+        resume_from=checkpoint_path,
+        backbone="resnet50",
+        embedding_dim=128,
+        loss_type="arcface",
+        image_size=8,
+        batch_size=2,
+        epochs=1,
+        num_workers=0,
+        mixed_precision=False,
+        checkpoint_dir=tmp_path / "ckpts",
+    )
+
+    returned = train_model(config)
+    assert returned == config.checkpoint_dir / "best.pt"
+    assert (config.checkpoint_dir / "best.pt").exists()
+    assert (config.checkpoint_dir / "last.pt").exists()
 
 
 def test_train_model_raises_when_resume_file_missing(tmp_path: Path) -> None:

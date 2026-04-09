@@ -31,6 +31,9 @@ def _build_parser() -> argparse.ArgumentParser:
     train_p.add_argument("--batch-size", type=int, default=32)
     train_p.add_argument("--epochs", type=int, default=12)
     train_p.add_argument("--learning-rate", type=float, default=1e-3)
+    train_p.add_argument("--backbone-lr", type=float, default=1e-5)
+    train_p.add_argument("--freeze-backbone-epochs", type=int, default=2)
+    train_p.add_argument("--grad-clip-norm", type=float, default=5.0)
     train_p.add_argument("--weight-decay", type=float, default=1e-4)
     train_p.add_argument("--num-workers", type=int, default=2)
     train_p.add_argument("--resume-from", type=Path, default=None)
@@ -73,6 +76,9 @@ def main() -> None:
             batch_size=args.batch_size,
             epochs=args.epochs,
             learning_rate=args.learning_rate,
+            backbone_lr=args.backbone_lr,
+            freeze_backbone_epochs=args.freeze_backbone_epochs,
+            grad_clip_norm=args.grad_clip_norm,
             weight_decay=args.weight_decay,
             num_workers=args.num_workers,
             mixed_precision=args.mixed_precision,
