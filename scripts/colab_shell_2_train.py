@@ -39,12 +39,13 @@ BACKBONE = "resnet50"  # choices: resnet50, mobilenet_v2
 EMBEDDING_DIM = 512     # choices: 128, 512
 LOSS_TYPE = "arcface"  # choices: arcface, triplet
 
-EPOCHS = 8              # pretrained backbone converges faster; 8 is enough
-BATCH_SIZE = 1024       # T4 has 15GB; AMP keeps memory low — 1024 fills ~10-12GB
-LEARNING_RATE = 1e-3    # lower LR for fine-tuning pretrained backbone (5e-3 caused collapse)
+EPOCHS = 10             # lower LR needs more epochs; pretrained backbone still converges fast
+BATCH_SIZE = 768        # T4 has 15GB; 1024 OOMs after backbone unfreeze, 768 is safe
+LEARNING_RATE = 1e-4    # 1e-3 caused head collapse with arcface_scale=64; 1e-4 is stable
 BACKBONE_LR = 1e-5      # backbone should adapt slowly vs randomly initialized head
 FREEZE_BACKBONE_EPOCHS = 2
 GRAD_CLIP_NORM = 5.0
+ARCFACE_SCALE = 30.0    # default 64 causes head collapse; 30 gives gentler gradients
 IMAGE_SIZE = 112
 NUM_WORKERS = 2         # 2 is stable on Colab; 4 can deadlock
 VAL_MAX_IMAGES = 1200
@@ -221,6 +222,8 @@ def start_training(data_root: Path) -> None:
         str(FREEZE_BACKBONE_EPOCHS),
         "--grad-clip-norm",
         str(GRAD_CLIP_NORM),
+        "--arcface-scale",
+        str(ARCFACE_SCALE),
         "--num-workers",
         str(NUM_WORKERS),
         "--val-max-images",

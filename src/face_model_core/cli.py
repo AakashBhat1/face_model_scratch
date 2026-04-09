@@ -34,6 +34,7 @@ def _build_parser() -> argparse.ArgumentParser:
     train_p.add_argument("--backbone-lr", type=float, default=1e-5)
     train_p.add_argument("--freeze-backbone-epochs", type=int, default=2)
     train_p.add_argument("--grad-clip-norm", type=float, default=5.0)
+    train_p.add_argument("--arcface-scale", type=float, default=64.0)
     train_p.add_argument("--weight-decay", type=float, default=1e-4)
     train_p.add_argument("--num-workers", type=int, default=2)
     train_p.add_argument("--resume-from", type=Path, default=None)
@@ -79,6 +80,7 @@ def main() -> None:
             backbone_lr=args.backbone_lr,
             freeze_backbone_epochs=args.freeze_backbone_epochs,
             grad_clip_norm=args.grad_clip_norm,
+            arcface_scale=args.arcface_scale,
             weight_decay=args.weight_decay,
             num_workers=args.num_workers,
             mixed_precision=args.mixed_precision,
